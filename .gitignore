@@ -1,0 +1,54 @@
+## .NET Core / .NET 6+ & WPF specific
+[Bb]in/
+[Oo]bj/
+*.cache
+*.log
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.dotsettings
+*.sln.dotsettings.user
+*.tlb
+*.tlh
+*.tmp
+*.vspscc
+*_i.c
+*_p.c
+*.vssscc
+.builds
+*.pidb
+*.svclog
+*.scc
+
+# NuGet (современные проекты используют PackageReference, но игнорируем на всякий случай)
+packages/
+*.nupkg
+*.snupkg
+.nuget/
+NuGet.config
+nuget.targets
+
+# Тесты и логи сборки
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# IDE и ОС
+.DS_Store
+Thumbs.db
+*.userprefs
+*.csproj.user
+*.dbmdl
+*.dbproj.schemaview
+*.jfm
+*.pfx
+*.publishsettings
+orleans.codegen.cs
+
+# Секреты и конфиги окружения
+.env
+*.key
+*.pfx
+appsettings.*.json
+secrets.json
+local.settings.json

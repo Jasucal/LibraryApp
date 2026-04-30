@@ -1,0 +1,38 @@
+﻿<Window x:Class="LibraryApp.ReaderInfoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Информация о читателе" Height="165" Width="400" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="140"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Text="ФИО:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" FontWeight="Bold"/>
+        <TextBlock x:Name="txtFullName" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center"/>
+
+        <TextBlock Text="Дата рождения:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" FontWeight="Bold"/>
+        <TextBlock x:Name="txtDateOfBirth" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center"/>
+
+        <TextBlock Text="Телефон:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" FontWeight="Bold"/>
+        <TextBlock x:Name="txtPhone" Grid.Row="2" Grid.Column="1" VerticalAlignment="Center"/>
+
+        <TextBlock Text="Email:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" FontWeight="Bold"/>
+        <TextBlock x:Name="txtEmail" Grid.Row="3" Grid.Column="1" VerticalAlignment="Center"/>
+
+        <Button Content="Закрыть"
+                Grid.Row="4" Grid.Column="1"
+                Width="100" Height="28"
+                HorizontalAlignment="Right"
+                Margin="0,10,0,0"
+                Click="BtnClose_Click"/>
+    </Grid>
+</Window>

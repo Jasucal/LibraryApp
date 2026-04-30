@@ -1,0 +1,70 @@
+﻿<Window x:Class="LibraryApp.UserMainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Библиотека" Height="600" Width="1000" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+            <EventSetter Event="PreviewMouseDown" Handler="DataGrid_PreviewMouseDown"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="10">
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBox x:Name="txtSearch" Grid.Column="0" VerticalAlignment="Center" MinWidth="100"
+                     Padding="4,2" FontSize="14" TextWrapping="NoWrap" Margin="0,0,5,0"
+                     TextChanged="TxtSearch_TextChanged"/>
+
+            <Button Content="Выйти" Width="80" Grid.Column="1" Margin="10,0,0,0"
+                    VerticalAlignment="Center" Click="BtnExit_Click"/>
+        </Grid>
+
+        <TabControl x:Name="tabMain" Grid.Row="1" SelectionChanged="TabMain_SelectionChanged">
+            <TabItem Header="Все книги">
+                <DataGrid x:Name="dgBooks" AutoGenerateColumns="False" IsReadOnly="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Название" Binding="{Binding Title}" Width="200"/>
+                        <DataGridTextColumn Header="Автор" Binding="{Binding AuthorName}" Width="200"/>
+                        <DataGridTextColumn Header="Издательство" Binding="{Binding Publisher}" Width="200"/>
+                        <DataGridTextColumn Header="Жанр" Binding="{Binding Genre}" Width="150"/>
+                        <DataGridTextColumn Header="Год" Binding="{Binding Year}" Width="100"/>
+                        <DataGridTextColumn Header="Статус" Binding="{Binding IsAvailable}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <TabItem Header="Мои книги">
+                <DataGrid x:Name="dgBorrowed" AutoGenerateColumns="False" IsReadOnly="True">
+                    <DataGrid.Resources>
+                        <Style TargetType="DataGridRow">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsOverdue}" Value="1">
+                                    <Setter Property="Background" Value="LightCoral"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Resources>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Название" Binding="{Binding BookTitle}" Width="150"/>
+                        <DataGridTextColumn Header="Автор" Binding="{Binding AuthorName}" Width="150"/>
+                        <DataGridTextColumn Header="Издательство" Binding="{Binding Publisher}" Width="150"/>
+                        <DataGridTextColumn Header="Дата выдачи" Binding="{Binding BorrowDate, StringFormat=\{0:dd.MM.yyyy\}}" Width="130"/>
+                        <DataGridTextColumn Header="Ожидаемая дата возврата" Binding="{Binding ExpectedReturnDate, StringFormat=\{0:dd.MM.yyyy\}}" Width="180"/>
+                        <DataGridTextColumn Header="Фактическая дата возврата" Binding="{Binding ReturnDate, StringFormat=\{0:dd.MM.yyyy\}}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>

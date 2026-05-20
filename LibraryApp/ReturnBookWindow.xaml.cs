@@ -12,19 +12,21 @@ namespace LibraryApp
     public partial class ReturnBookWindow : Window
     {
         public event Action BookReturned;
-
         private DataTable borrowsTable;
 
-        public ReturnBookWindow()
+        private int _staffId;
+
+        public ReturnBookWindow(int staffId)
         {
             InitializeComponent();
+            _staffId = staffId;
             LoadBorrows();
         }
 
         private void LoadBorrows()
         {
             string query = @"
-                SELECT bb.Id, b.Title, r.FullName, bb.BorrowDate, bb.ExpectedReturnDate
+                SELECT bb.Id, b.Title, b.Id AS BookId, r.FullName, r.Email, bb.BorrowDate, bb.ExpectedReturnDate
                 FROM BorrowedBooks bb
                 JOIN Books b ON bb.BookId = b.Id
                 JOIN Readers r ON bb.ReaderId = r.Id
@@ -49,8 +51,12 @@ namespace LibraryApp
                 string title = row["Title"].ToString();
                 string fullName = row["FullName"].ToString();
 
+                string email = row["Email"].ToString();
+                int bookId = Convert.ToInt32(row["BookId"]);
+
                 string overdue = (expectedReturn < DateTime.Now) ? " (просрочена)" : "";
-                row["DisplayText"] = fullName + " - " + title + " (взято: " + borrowDate.ToShortDateString() + ")" + overdue;
+
+                row["DisplayText"] = $"{fullName} ({email}) - ID {bookId} | {title} (взято: {borrowDate.ToShortDateString()}){overdue}";
             }
 
             borrowsTable.DefaultView.RowFilter = string.Empty;
@@ -108,9 +114,11 @@ namespace LibraryApp
 
             int borrowId = (int)cbBorrows.SelectedValue;
 
-            string updateBorrow = "UPDATE BorrowedBooks SET ReturnDate=@ReturnDate WHERE Id=@Id";
+            string updateBorrow = @"
+                UPDATE BorrowedBooks SET ReturnDate = @ReturnDate, ReturnedBy = @ReturnedBy WHERE Id = @Id";
             DbHelper.Execute(updateBorrow,
                 new SqlParameter("@ReturnDate", DateTime.Now),
+                new SqlParameter("@ReturnedBy", _staffId),
                 new SqlParameter("@Id", borrowId));
 
             string bookIdQuery = "SELECT BookId FROM BorrowedBooks WHERE Id=@Id";

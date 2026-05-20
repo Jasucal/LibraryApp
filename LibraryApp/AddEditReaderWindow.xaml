@@ -1,6 +1,8 @@
 ﻿<Window x:Class="LibraryApp.AddEditReaderWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:LibraryApp.Helpers"
+        local:ClickClearFocusBehavior.IsEnabled="True"
         Title="Управление читателями" Height="380" Width="450" ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen">
 

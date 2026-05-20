@@ -39,7 +39,7 @@ namespace LibraryApp
 
                 if (role == 1)
                 {
-                    MainWindow mw = new MainWindow();
+                    MainWindow mw = new MainWindow(userId);
                     mw.Show();
                 }
                 else

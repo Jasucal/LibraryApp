@@ -4,18 +4,18 @@
     {
         // Книги
         public const string Books_All = @"
-            SELECT b.Id, b.Title, a.Name AS AuthorName, b.Publisher, b.Genre, b.Year, b.IsAvailable
-            FROM Books b
-            JOIN Authors a ON b.AuthorId = a.Id";
+        SELECT b.Id, b.Title, a.Name AS AuthorName, b.Publisher, b.Genre, b.Year, b.IsAvailable, b.IsAdult
+        FROM Books b
+        JOIN Authors a ON b.AuthorId = a.Id";
 
         public const string Books_WithSearch = @"
-            SELECT b.Id, b.Title, a.Name AS AuthorName, b.Publisher, b.Genre, b.Year, b.IsAvailable
-            FROM Books b
-            JOIN Authors a ON b.AuthorId = a.Id
-            WHERE b.Title LIKE @keyword
-                OR a.Name LIKE @keyword
-                OR b.Genre LIKE @keyword
-                OR b.Publisher LIKE @keyword";
+        SELECT b.Id, b.Title, a.Name AS AuthorName, b.Publisher, b.Genre, b.Year, b.IsAvailable, b.IsAdult
+        FROM Books b
+        JOIN Authors a ON b.AuthorId = a.Id
+        WHERE b.Title LIKE @keyword
+            OR a.Name LIKE @keyword
+            OR b.Genre LIKE @keyword
+            OR b.Publisher LIKE @keyword";
 
         public const string Books_CheckBeforeDelete = "SELECT COUNT(*) FROM BorrowedBooks WHERE BookId = @Id";
         public const string Books_Delete = "DELETE FROM Books WHERE Id=@Id";
@@ -82,17 +82,20 @@
 
         // История
         public const string History_All = @"
-            SELECT 
-                b.Title AS BookTitle,
+            SELECT b.Title AS BookTitle,
                 r.FullName AS ReaderName,
                 bb.BorrowDate,
                 bb.ExpectedReturnDate,
-                bb.ReturnDate
+                bb.ReturnDate,
+                issuer.FullName AS IssuedBy,
+                returner.FullName AS ReturnedBy
             FROM BorrowedBooks bb
             JOIN Books b ON bb.BookId = b.Id
             JOIN Readers r ON bb.ReaderId = r.Id
+            LEFT JOIN Readers issuer ON bb.IssuedBy = issuer.Id
+            LEFT JOIN Readers returner ON bb.ReturnedBy = returner.Id
             WHERE bb.ReturnDate IS NOT NULL
-            ORDER BY bb.ReturnDate DESC";
+            ORDER BY bb.BorrowDate DESC";
 
         public const string History_WithSearch = @"
             SELECT 
@@ -100,10 +103,14 @@
                 r.FullName AS ReaderName,
                 bb.BorrowDate,
                 bb.ExpectedReturnDate,
-                bb.ReturnDate
+                bb.ReturnDate,
+                issuer.FullName AS IssuedBy,
+                returner.FullName AS ReturnedBy
             FROM BorrowedBooks bb
             JOIN Books b ON bb.BookId = b.Id
             JOIN Readers r ON bb.ReaderId = r.Id
+            LEFT JOIN Readers issuer ON bb.IssuedBy = issuer.Id
+            LEFT JOIN Readers returner ON bb.ReturnedBy = returner.Id
             WHERE bb.ReturnDate IS NOT NULL
             AND (
                 b.Title LIKE @keyword
@@ -140,42 +147,60 @@
 
         // ПОЛЬЗОВАТЕЛЬСКИЙ ИНТЕРФЕЙС (UserMainWindow)
 
-        // Книги для пользователя (каталог)
+        // Книги для пользователя (каталог) — БАЗОВЫЕ запросы (используются для взрослых)
         public const string UserBooks_All = @"
-            SELECT b.Title, a.Name AS AuthorName, b.Publisher, b.Genre, b.Year, 
-                   CASE WHEN b.IsAvailable=1 THEN 'Доступна' ELSE 'Выдана' END AS IsAvailable 
+            SELECT b.Id, b.Title, a.Name AS AuthorName, b.Publisher, b.Genre, b.Year, 
+                CASE WHEN b.IsAvailable=1 THEN 'Доступна' ELSE 'Выдана' END AS IsAvailable,
+                b.IsAdult
             FROM Books b 
             JOIN Authors a ON b.AuthorId = a.Id";
 
         public const string UserBooks_WithSearch = @"
-            SELECT b.Title, a.Name AS AuthorName, b.Publisher, b.Genre, b.Year, 
-                   CASE WHEN b.IsAvailable=1 THEN 'Доступна' ELSE 'Выдана' END AS IsAvailable 
+            SELECT b.Id, b.Title, a.Name AS AuthorName, b.Publisher, b.Genre, b.Year, 
+                CASE WHEN b.IsAvailable=1 THEN 'Доступна' ELSE 'Выдана' END AS IsAvailable,
+                b.IsAdult
             FROM Books b 
             JOIN Authors a ON b.AuthorId = a.Id
             WHERE b.Title LIKE @search OR a.Name LIKE @search OR b.Publisher LIKE @search OR b.Genre LIKE @search";
 
-        // Мои книги (выданные текущему пользователю)
+        // 🔹 Книги для совершеннолетних (дубликаты базовых, но с явным именем для читаемости кода)
+        public const string UserBooks_All_Adult = UserBooks_All;
+        public const string UserBooks_WithSearch_Adult = UserBooks_WithSearch;
+
+        // 🔹 Книги для несовершеннолетних (с фильтром IsAdult = 0)
+        public const string UserBooks_All_Minor = @"
+            SELECT b.Id, b.Title, a.Name AS AuthorName, b.Publisher, b.Genre, b.Year, 
+                CASE WHEN b.IsAvailable=1 THEN 'Доступна' ELSE 'Выдана' END AS IsAvailable,
+                b.IsAdult
+            FROM Books b 
+            JOIN Authors a ON b.AuthorId = a.Id
+            WHERE b.IsAdult = 0";
+
+        public const string UserBooks_WithSearch_Minor = @"
+            SELECT b.Id, b.Title, a.Name AS AuthorName, b.Publisher, b.Genre, b.Year, 
+                CASE WHEN b.IsAvailable=1 THEN 'Доступна' ELSE 'Выдана' END AS IsAvailable,
+                b.IsAdult
+            FROM Books b 
+            JOIN Authors a ON b.AuthorId = a.Id
+            WHERE b.IsAdult = 0
+            AND (b.Title LIKE @search OR a.Name LIKE @search OR b.Publisher LIKE @search OR b.Genre LIKE @search)";
+
+        // 🔹 Мои книги (выданные текущему пользователю) — без фильтра 18+, показываем всё
         public const string UserBorrowed_Mine = @"
-            SELECT b.Title AS BookTitle, 
-                   a.Name AS AuthorName, 
-                   b.Publisher, 
-                   bb.BorrowDate, 
-                   bb.ExpectedReturnDate,
-                   bb.ReturnDate,
-                   CASE WHEN bb.ExpectedReturnDate < GETDATE() AND bb.ReturnDate IS NULL THEN 1 ELSE 0 END AS IsOverdue
+            SELECT b.Id AS BookId,
+                b.Title AS BookTitle, a.Name AS AuthorName, b.Publisher, bb.BorrowDate, 
+                bb.ExpectedReturnDate, bb.ReturnDate,
+                CASE WHEN bb.ExpectedReturnDate < GETDATE() AND bb.ReturnDate IS NULL THEN 1 ELSE 0 END AS IsOverdue
             FROM BorrowedBooks bb
             JOIN Books b ON bb.BookId = b.Id
             JOIN Authors a ON b.AuthorId = a.Id
             WHERE bb.ReaderId = @userId";
 
         public const string UserBorrowed_MineWithSearch = @"
-            SELECT b.Title AS BookTitle, 
-                   a.Name AS AuthorName, 
-                   b.Publisher, 
-                   bb.BorrowDate, 
-                   bb.ExpectedReturnDate,
-                   bb.ReturnDate,
-                   CASE WHEN bb.ExpectedReturnDate < GETDATE() AND bb.ReturnDate IS NULL THEN 1 ELSE 0 END AS IsOverdue
+            SELECT b.Id AS BookId,
+                b.Title AS BookTitle, a.Name AS AuthorName, b.Publisher, 
+                bb.BorrowDate, bb.ExpectedReturnDate, bb.ReturnDate,
+                CASE WHEN bb.ExpectedReturnDate < GETDATE() AND bb.ReturnDate IS NULL THEN 1 ELSE 0 END AS IsOverdue
             FROM BorrowedBooks bb
             JOIN Books b ON bb.BookId = b.Id
             JOIN Authors a ON b.AuthorId = a.Id

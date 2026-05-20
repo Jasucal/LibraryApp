@@ -1,6 +1,8 @@
 ﻿<Window x:Class="LibraryApp.BorrowBookWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:LibraryApp.Helpers"
+        local:ClickClearFocusBehavior.IsEnabled="True"
         Title="Выдать книгу" Height="325" Width="350" ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen">
     <Grid Margin="10">

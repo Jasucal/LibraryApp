@@ -1,32 +1,26 @@
 ﻿using LibraryApp.DataAccess;
 using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using System;
 using System.Data;
 using System.IO;
 using System.Windows;
 
-
 namespace LibraryApp
 {
-    public partial class ReportsWindow : Window
+    public static class Reports
     {
-        public ReportsWindow()
-        {
-            InitializeComponent();
-            ExcelPackage.License.SetNonCommercialPersonal("LibraryApp");
-        }
-
         // Отчёт для книг
-        private void BtnBooksReport_Click(object sender, RoutedEventArgs e)
+        public static void GenerateBooksReport()
         {
             try
             {
                 ExcelPackage.License.SetNonCommercialPersonal("LibraryApp");
 
                 string query = @"
-                    SELECT b.Id, b.Title, a.Name AS AuthorName, b.Publisher, b.Genre, b.Year, b.IsAvailable
-                    FROM Books b
-                    JOIN Authors a ON b.AuthorId = a.Id";
+            SELECT b.Id, b.Title, a.Name AS AuthorName, b.Publisher, b.Genre, b.Year, b.IsAvailable, b.IsAdult
+            FROM Books b
+            JOIN Authors a ON b.AuthorId = a.Id";
 
                 DataTable books = DbHelper.GetData(query);
                 if (books.Rows.Count == 0)
@@ -46,8 +40,10 @@ namespace LibraryApp
                     ws.Cells[1, 5].Value = "Жанр";
                     ws.Cells[1, 6].Value = "Год";
                     ws.Cells[1, 7].Value = "Доступна";
+                    ws.Cells[1, 8].Value = "18+";
 
-                    using (var range = ws.Cells[1, 1, 1, 7])
+                    // Форматирование заголовков
+                    using (var range = ws.Cells[1, 1, 1, 8])
                     {
                         range.Style.Font.Bold = true;
                         range.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
@@ -63,6 +59,8 @@ namespace LibraryApp
                         ws.Cells[row, 5].Value = book["Genre"];
                         ws.Cells[row, 6].Value = book["Year"];
                         ws.Cells[row, 7].Value = (bool)book["IsAvailable"] ? "Да" : "Нет";
+                        ws.Cells[row, 8].Value = (bool)book["IsAdult"] ? "Да" : "Нет";
+
                         row++;
                     }
 
@@ -82,7 +80,7 @@ namespace LibraryApp
         }
 
         // Отчёт для авторов
-        private void BtnAuthorsReport_Click(object sender, RoutedEventArgs e)
+        public static void GenerateAuthorsReport()
         {
             try
             {
@@ -138,13 +136,12 @@ namespace LibraryApp
         }
 
         // Отчёт для читателей
-        private void BtnReadersReport_Click(object sender, RoutedEventArgs e)
+        public static void GenerateReadersReport()
         {
             try
             {
                 ExcelPackage.License.SetNonCommercialPersonal("LibraryApp");
 
-                // Выбираем только обычных пользователей
                 string query = @"
                     SELECT FullName, DateOfBirth, PhoneNumber, Email
                     FROM Readers
@@ -201,7 +198,7 @@ namespace LibraryApp
         }
 
         // Отчёт по истории
-        private void BtnHistoryReport_Click(object sender, RoutedEventArgs e)
+        public static void GenerateHistoryReport()
         {
             try
             {
@@ -212,10 +209,14 @@ namespace LibraryApp
                         r.FullName AS ReaderName,
                         bb.BorrowDate,
                         bb.ExpectedReturnDate,
-                        bb.ReturnDate
+                        bb.ReturnDate,
+                        issuer.FullName AS IssuedBy,
+                        returner.FullName AS ReturnedBy
                     FROM BorrowedBooks bb
                     JOIN Books b ON bb.BookId = b.Id
                     JOIN Readers r ON bb.ReaderId = r.Id
+                    LEFT JOIN Readers issuer ON bb.IssuedBy = issuer.Id
+                    LEFT JOIN Readers returner ON bb.ReturnedBy = returner.Id
                     WHERE bb.ReturnDate IS NOT NULL
                     ORDER BY bb.ReturnDate DESC";
 
@@ -235,8 +236,11 @@ namespace LibraryApp
                     ws.Cells[1, 3].Value = "Дата выдачи";
                     ws.Cells[1, 4].Value = "Плановая дата возврата";
                     ws.Cells[1, 5].Value = "Фактическая дата возврата";
+                    ws.Cells[1, 6].Value = "Выдал";
+                    ws.Cells[1, 7].Value = "Принял";
 
-                    using (var range = ws.Cells[1, 1, 1, 5])
+                    // Форматирование заголовков
+                    using (var range = ws.Cells[1, 1, 1, 7])
                     {
                         range.Style.Font.Bold = true;
                         range.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
@@ -257,6 +261,9 @@ namespace LibraryApp
                         object returned = record["ReturnDate"];
                         ws.Cells[row, 5].Value = (returned != DBNull.Value) ? Convert.ToDateTime(returned).ToString("dd.MM.yyyy") : "";
 
+                        ws.Cells[row, 6].Value = record["IssuedBy"]?.ToString() ?? "";
+                        ws.Cells[row, 7].Value = record["ReturnedBy"]?.ToString() ?? "";
+
                         row++;
                     }
 
@@ -267,6 +274,108 @@ namespace LibraryApp
                     File.WriteAllBytes(path, excel.GetAsByteArray());
 
                     MessageBox.Show("Отчёт по истории создан:\n" + path, "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка: " + ex.Message);
+            }
+        }
+
+        // Отчёт о статистике
+        public static void GenerateStatsReport(DataTable popularBooks, DataTable popularAuthors)
+        {
+            try
+            {
+                ExcelPackage.License.SetNonCommercialPersonal("LibraryApp");
+
+                if ((popularBooks == null || popularBooks.Rows.Count == 0) && (popularAuthors == null || popularAuthors.Rows.Count == 0))
+                {
+                    MessageBox.Show("Нет данных для отчёта.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                using (var excel = new ExcelPackage())
+                {
+                    var ws = excel.Workbook.Worksheets.Add("Статистика");
+
+                    int row = 1;
+                    ws.Cells[row, 1].Value = "ПОПУЛЯРНЫЕ КНИГИ";
+                    ws.Cells[row, 1, row, 5].Merge = true;
+                    ws.Cells[row, 1].Style.Font.Bold = true;
+                    row++;
+
+                    ws.Cells[row, 1].Value = "Место";
+                    ws.Cells[row, 2].Value = "Название";
+                    ws.Cells[row, 3].Value = "Автор";
+                    ws.Cells[row, 4].Value = "Выдач";
+                    ws.Cells[row, 5].Value = "Жанр";
+
+                    using (var range = ws.Cells[row, 1, row, 5])
+                    {
+                        range.Style.Font.Bold = true;
+                        range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    }
+                    row++;
+
+                    if (popularBooks != null)
+                    {
+                        foreach (DataRow book in popularBooks.Rows)
+                        {
+                            ws.Cells[row, 1].Value = book["Rank"];
+                            ws.Cells[row, 2].Value = book["Title"];
+                            ws.Cells[row, 3].Value = book["AuthorName"];
+                            ws.Cells[row, 4].Value = book["BorrowCount"];
+                            ws.Cells[row, 5].Value = book["Genre"];
+                            row++;
+                        }
+                    }
+
+                    row++;
+
+                    ws.Cells[row, 1].Value = "ПОПУЛЯРНЫЕ АВТОРЫ";
+                    ws.Cells[row, 1, row, 5].Merge = true;
+                    ws.Cells[row, 1].Style.Font.Bold = true;
+                    row++;
+
+                    ws.Cells[row, 1].Value = "Место";
+                    ws.Cells[row, 2].Value = "ФИО";
+                    ws.Cells[row, 3].Value = "Книг в выдаче";
+                    ws.Cells[row, 4].Value = "Уникальных книг";
+                    ws.Cells[row, 5].Value = "Дата рождения";
+
+                    using (var range = ws.Cells[row, 1, row, 5])
+                    {
+                        range.Style.Font.Bold = true;
+                        range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    }
+                    row++;
+
+                    if (popularAuthors != null)
+                    {
+                        foreach (DataRow author in popularAuthors.Rows)
+                        {
+                            ws.Cells[row, 1].Value = author["Rank"];
+                            ws.Cells[row, 2].Value = author["Name"];
+                            ws.Cells[row, 3].Value = author["TotalBorrows"];
+                            ws.Cells[row, 4].Value = author["UniqueBooks"];
+                            ws.Cells[row, 5].Value = author["DateOfBirth"] != DBNull.Value
+                                ? Convert.ToDateTime(author["DateOfBirth"]).ToString("dd.MM.yyyy")
+                                : "";
+                            row++;
+                        }
+                    }
+
+                    ws.Cells[ws.Dimension.Address].AutoFitColumns();
+
+                    string fileName = "LibraryStats_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xlsx";
+                    string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+
+                    if (File.Exists(path)) File.Delete(path);
+                    File.WriteAllBytes(path, excel.GetAsByteArray());
+
+                    MessageBox.Show("Отчёт по статистике создан:\n" + path, "Успех",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)
